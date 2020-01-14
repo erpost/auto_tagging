@@ -1,0 +1,120 @@
+import boto3
+import os
+
+
+def get_profiles():
+    credentials = os.path.expanduser('~/.aws/access_keys/credentials')
+    os.environ['AWS_SHARED_CREDENTIALS_FILE'] = credentials
+    session_profiles = boto3.session.Session().available_profiles
+    aws_profiles = []
+
+    for session_profile in session_profiles:
+        aws_profiles.append(session_profile)
+
+    return aws_profiles
+
+
+def get_regions(aws_profile):
+    boto3.setup_default_session(profile_name=aws_profile, region_name='us-east-1')
+    client = boto3.client('ec2')
+    aws_regions = []
+    response = client.describe_regions()
+
+    for region in response['Regions']:
+        aws_regions.append(region['RegionName'])
+
+    return aws_regions
+
+
+def get_ec2(aws_profile, aws_region):
+    boto3.setup_default_session(profile_name=aws_profile, region_name=aws_region)
+    ec2 = boto3.resource('ec2')
+    for instance in ec2.instances.all():
+        state = instance.state['Name']
+        if state != 'terminated':
+
+            # Pull CloudID
+            cloud_id = instance.id
+            print('CloudID: ', cloud_id)
+
+            # Pull DeviceFQDN - Private
+            try:
+                priv_dns = instance.private_dns_name
+                print('DeviceFQDN - Private: ', priv_dns)
+            except AttributeError:
+                priv_dns = 'None'
+                print('DeviceFQDN - Private: ', priv_dns)
+
+            # Pull DeviceFQDN - Public
+            try:
+                pub_dns = instance.public_dns_name
+                print('DeviceFQDN - Public: ', pub_dns)
+            except AttributeError:
+                pub_dns = 'None'
+                print('DeviceFQDN - Public: ', pub_dns)
+
+            # Pull Device Category (Hardcoded)
+            device_cat = 'Cloud'
+            print('DeviceCategory: ', device_cat)
+
+            # Pull DeviceType (Hardcoded)
+            device_type = 'IaaS'
+            print('DeviceType: ', device_type)
+
+            # Pull DeviceMake (Hardcoded)
+            device_make = 'AWS'
+            print('DeviceMake: ', device_make)
+
+            # Pull DeviceModel (Hardcoded)
+            device_model = 'EC2'
+            print('DeviceModel: ', device_model)
+
+            # Pull FacilityID
+            facility_id = instance.placement['AvailabilityZone']
+            print('FacilityID: ', facility_id)
+
+            # Pull IPAddress - Private
+            priv_ip = instance.private_ip_address
+            print('IPAddress - Private: ', priv_ip)
+
+            # Pull IPAddress - Public
+            pub_ip = instance.public_ip_address
+            print('IPAddress - Public: ', pub_ip)
+
+            # Pull IPAddressAgencyOwned
+            interfaces = instance.network_interfaces_attribute
+            for interface in interfaces:
+                try:
+                    ip_owner = interface['Association']['IpOwnerId']
+                    print('IPAddressAgencyOwned: ', ip_owner)
+                except KeyError:
+                    ip_owner = 'N/A'
+                    print('IPAddressAgencyOwned: N/A')
+
+            # Pull InterfaceName
+            interfaces = instance.network_interfaces
+            for interface in interfaces:
+                int_name = interface.id
+                print('InterfaceName: ', int_name)
+
+            # Pull MACAddress
+            interfaces = instance.network_interfaces_attribute
+            for interface in interfaces:
+                mac = interface['MacAddress']
+                print('MACAddress: ', mac)
+
+                # Pull FacilityType (Hardcoded)
+                facility_type = 'AWS'
+                print('Facility: ', facility_type)
+
+    return cloud_id, priv_dns, pub_dns, device_cat, device_type, device_make, device_model, facility_id, priv_ip,\
+        pub_ip, ip_owner, int_name, mac, facility_type
+
+
+if __name__ == '__main__':
+    profiles = get_profiles()
+    regions = get_regions(profiles[0])
+    print(regions)
+    print(profiles)
+    ec2s = get_ec2(profiles[0], 'us-east-1')
+    print(ec2s)
